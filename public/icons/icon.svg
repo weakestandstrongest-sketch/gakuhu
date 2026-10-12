@@ -12,5 +12,5 @@
   </defs>
   <rect width="512" height="512" rx="112" fill="url(#bg)"/>
   <circle cx="256" cy="256" r="196" fill="none" stroke="url(#brass)" stroke-width="8" opacity=".85"/>
-  <path d="M206 138v187a53 53 0 1 1-21-42V171l149-32v155a53 53 0 1 1-21-42V165z" fill="url(#brass)"/>
+  <g fill="url(#brass)" transform="translate(256 256) scale(8.5) translate(-22.6 -24)"><rect x="19.4" y="14.6" width="2" height="16.6"/><rect x="31.4" y="11.6" width="2" height="16.6"/><polygon points="19.4,14.6 33.4,11.6 33.4,16.1 19.4,19.1"/><ellipse cx="16.6" cy="31.2" rx="4.9" ry="3.7" transform="rotate(-22 16.6 31.2)"/><ellipse cx="28.6" cy="28.2" rx="4.9" ry="3.7" transform="rotate(-22 28.6 28.2)"/></g>
 </svg>
