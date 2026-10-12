@@ -41,7 +41,7 @@ npm test         # 単体テスト (vitest)
 npm run build    # dist/ に静的ファイルを出力
 ```
 
-`main` ブランチに push すると GitHub Actions で GitHub Pages に公開されます（リポジトリの Settings → Pages → Source を「GitHub Actions」にしてください）。
+リポジトリの既定のブランチに push すると GitHub Actions で GitHub Pages（https://weakestandstrongest-sketch.github.io/gakuhu/ ）に公開されます。最初の1回だけ、リポジトリの Settings → Pages → Source を「GitHub Actions」にしてください。
 
 ## 仕組み
 
