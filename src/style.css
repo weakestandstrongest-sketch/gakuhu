@@ -38,8 +38,8 @@
   --key-black: #1a1c22;
   --key-label: #6b5a3a;
 
-  --font-display: 'Playfair Display', 'Zen Old Mincho', 'Hiragino Mincho ProN', serif;
-  --font-jp-display: 'Zen Old Mincho', 'Hiragino Mincho ProN', 'Yu Mincho', serif;
+  --font-display: 'Playfair Display', 'Hiragino Mincho ProN', serif;
+  --font-jp-display: 'Hiragino Mincho ProN', 'Yu Mincho', 'Noto Serif JP', serif;
   --font-body: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Noto Sans JP', 'Yu Gothic UI', system-ui, sans-serif;
   --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
 
@@ -107,21 +107,6 @@ a {
 .hero {
   padding: max(28px, env(safe-area-inset-top)) 20px 8px;
   position: relative;
-}
-
-/* 背景にうっすら五線 */
-.hero::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 38px;
-  height: 48px;
-  opacity: 0.18;
-  background: repeating-linear-gradient(to bottom, var(--brass) 0 1px, transparent 1px 12px);
-  mask-image: linear-gradient(90deg, transparent, #000 20%, #000 80%, transparent);
-  -webkit-mask-image: linear-gradient(90deg, transparent, #000 20%, #000 80%, transparent);
-  pointer-events: none;
 }
 
 .hero-inner {
@@ -1157,11 +1142,7 @@ progress::-moz-progress-bar {
     padding: max(18px, env(safe-area-inset-top)) 16px 4px;
   }
 
-  .hero::before {
-    top: 26px;
-  }
-
-  .hero-inner {
+    .hero-inner {
     gap: 16px;
   }
 

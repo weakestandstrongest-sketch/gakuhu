@@ -32,8 +32,10 @@ jobs:
           path: dist
 
   # リポジトリの既定のブランチ (Settings → General → Default branch) だけを公開する
+  # Pages の Source が「Deploy from a branch」のときは失敗するが、その場合は app/ フォルダで公開されるので問題ない
   deploy:
     if: github.event_name != 'pull_request' && github.ref_name == github.event.repository.default_branch
+    continue-on-error: true
     needs: build
     runs-on: ubuntu-latest
     environment:

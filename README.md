@@ -36,7 +36,10 @@ npm test         # 単体テスト (vitest)
 npm run build    # dist/ に静的ファイルを出力
 ```
 
-リポジトリの既定のブランチに push すると GitHub Actions で GitHub Pages（https://weakestandstrongest-sketch.github.io/gakuhu/ ）に公開されます。最初の1回だけ、リポジトリの Settings → Pages → Source を「GitHub Actions」にしてください。
+公開先: https://weakestandstrongest-sketch.github.io/gakuhu/
+
+- GitHub Pages の Source が「**Deploy from a branch**」の場合: 組み立て済みのアプリを `app/` フォルダに入れてコミットしておき、トップページから自動でそこへ移動します。**コードを変えたら `npm run build:app` を実行して `app/` もコミットしてください。**
+- Source が「**GitHub Actions**」の場合: 既定のブランチに push すると自動で組み立てて公開します（`app/` は使いません）。
 
 ## 仕組み
 

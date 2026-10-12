@@ -15,7 +15,7 @@
     <link rel="manifest" href="manifest.webmanifest" />
     <title>Gakuhu — テナーサックスの耳コピ & 移調</title>
     <script>
-      // アプリ本体が動かなかったとき (公開設定の間違い・古いブラウザ) に案内を出す
+      // アプリ本体が動かなかったとき (古いブラウザなど) に案内を出す
       window.addEventListener('load', function () {
         setTimeout(function () {
           if (!window.__gakuhuReady) {
@@ -62,8 +62,8 @@
     </header>
 
     <div id="boot-error" class="boot-error" role="alert" hidden>
-      <strong>アプリが起動していません</strong>
-      <p>GitHub の <b>Settings → Pages → Build and deployment → Source</b> を「<b>GitHub Actions</b>」にしてください（「Deploy from a branch」だとアプリが動きません）。設定済みの場合は、iOS 16.4 以降の Safari / 最新の Chrome で開き直してください。</p>
+      <strong>アプリを起動できませんでした</strong>
+      <p>ページを再読み込みしてみてください。それでも表示されない場合は、iOS 16.4 以降の Safari か最新の Chrome で開いてください。</p>
     </div>
 
     <main>
@@ -72,7 +72,7 @@
         <article class="card">
           <header class="step-head">
             <span class="step-no">I</span>
-            <div><p class="eyebrow">Source</p><h2>音源をえらぶ</h2></div>
+            <h2>音源をえらぶ</h2>
           </header>
           <div class="source-grid">
             <label class="source-tile is-primary">
@@ -123,7 +123,7 @@
         <article class="card" id="player-card" hidden>
           <header class="step-head">
             <span class="step-no">II</span>
-            <div><p class="eyebrow">Listen</p><h2>聴いて、範囲をえらぶ</h2></div>
+            <h2>聴いて、範囲をえらぶ</h2>
           </header>
           <p class="small muted">波形をなぞると範囲を選択、タップでその位置へ。<span class="only-desktop"><span class="kbd">Space</span> で再生 / 停止。</span></p>
           <div class="wave-wrap"><canvas id="waveform" class="waveform"></canvas></div>
@@ -160,7 +160,7 @@
         <article class="card" id="analyze-card" hidden>
           <header class="step-head">
             <span class="step-no">III</span>
-            <div><p class="eyebrow">Analyze</p><h2>音をひろう</h2></div>
+            <h2>音をひろう</h2>
           </header>
           <div class="field">
             <span class="field-label">音源の種類</span>
@@ -193,7 +193,7 @@
         <article class="card" id="result-card" hidden>
           <header class="step-head">
             <span class="step-no">IV</span>
-            <div><p class="eyebrow">Score</p><h2>テナー譜に仕上げる</h2></div>
+            <h2>テナー譜に仕上げる</h2>
           </header>
 
           <div class="settings">
@@ -301,7 +301,7 @@
         <article class="card">
           <header class="step-head">
             <span class="step-no">I</span>
-            <div><p class="eyebrow">Score</p><h2>楽譜ファイルを開く</h2></div>
+            <h2>楽譜ファイルを開く</h2>
           </header>
           <p class="lead">in C・in E♭・in F などで書かれた楽譜を、テナーサックス (in B♭) の楽譜に。コードネームも一緒に移調します。</p>
           <label class="source-tile is-primary single">
@@ -325,7 +325,7 @@
         <article class="card" id="transpose-options" hidden>
           <header class="step-head">
             <span class="step-no">II</span>
-            <div><p class="eyebrow">Transpose</p><h2>テナー譜にする</h2></div>
+            <h2>テナー譜にする</h2>
           </header>
           <div class="field-grid">
             <div class="field">
@@ -373,5 +373,13 @@
     </footer>
 
     <script type="module" src="/src/main.ts"></script>
+    <script>
+      // GitHub Pages が「Deploy from a branch」の設定だと、組み立て前のこのファイルがそのまま公開されて動かない。
+      // その場合は、組み立て済みのアプリ (app/ フォルダ) へ移動する。
+      // (組み立て後の index.html では上の src が書き換わるので、この処理は起きない)
+      if (/github\.io$/.test(location.hostname) && document.querySelector('script[src="/src/main.ts"]')) {
+        location.replace('app/' + location.hash);
+      }
+    </script>
   </body>
 </html>

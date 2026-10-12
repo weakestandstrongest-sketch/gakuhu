@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="description" content="テナーサックス (in B♭) のための耳コピ・移調ツール。音源から楽譜を書き起こし、in C などの楽譜をテナー用に移調します。" />
+    <meta name="theme-color" content="#0b0c10" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Gakuhu" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <title>Gakuhu — テナーサックスの耳コピ & 移調</title>
+    <script>
+      // アプリ本体が動かなかったとき (古いブラウザなど) に案内を出す
+      window.addEventListener('load', function () {
+        setTimeout(function () {
+          if (!window.__gakuhuReady) {
+            var b = document.getElementById('boot-error');
+            if (b) b.hidden = false;
+          }
+        }, 3000);
+      });
+    </script>
+    <script type="module" crossorigin src="./assets/index-ntZODdsK.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-mwZ6MI8X.css">
+  </head>
+  <body>
+    <div class="ambience" aria-hidden="true"></div>
+
+    <header class="hero">
+      <div class="hero-inner">
+        <div class="brand">
+          <svg class="brand-mark" viewBox="0 0 48 48" aria-hidden="true">
+            <defs>
+              <linearGradient id="brass" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#f7dc9b" />
+                <stop offset="0.55" stop-color="#e2b45a" />
+                <stop offset="1" stop-color="#a87824" />
+              </linearGradient>
+            </defs>
+            <circle cx="24" cy="24" r="23" fill="none" stroke="url(#brass)" stroke-width="1.5" />
+            <path d="M19 13v17.5a5 5 0 1 1-2-4V16l14-3v14.5a5 5 0 1 1-2-4V15.4z" fill="url(#brass)" />
+          </svg>
+          <div>
+            <h1 class="wordmark">Gakuhu</h1>
+            <p class="hero-sub">for Tenor Saxophone <span class="bflat">in B♭</span></p>
+          </div>
+        </div>
+        <nav class="modes" role="tablist" aria-label="モード">
+          <button role="tab" data-tab="transcribe" aria-selected="true">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h2M7 8v8M11 5v14M15 9v6M19 7v10M21 12h0" /></svg>
+            <span><b>耳コピ</b><small>音源 → テナー譜</small></span>
+          </button>
+          <button role="tab" data-tab="transpose" aria-selected="false">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M3 10h18M3 14h18M3 18h18" opacity=".45" /><path d="M9 20V8l8-2v10" /><circle cx="7.5" cy="20" r="1.8" /><circle cx="15.5" cy="16" r="1.8" /></svg>
+            <span><b>移調</b><small>楽譜 → テナー譜</small></span>
+          </button>
+        </nav>
+      </div>
+    </header>
+
+    <div id="boot-error" class="boot-error" role="alert" hidden>
+      <strong>アプリを起動できませんでした</strong>
+      <p>ページを再読み込みしてみてください。それでも表示されない場合は、iOS 16.4 以降の Safari か最新の Chrome で開いてください。</p>
+    </div>
+
+    <main>
+      <!-- ===================== 耳コピ ===================== -->
+      <section id="tab-transcribe" class="tab-panel" role="tabpanel">
+        <article class="card">
+          <header class="step-head">
+            <span class="step-no">I</span>
+            <h2>音源をえらぶ</h2>
+          </header>
+          <div class="source-grid">
+            <label class="source-tile is-primary">
+              <input type="file" id="audio-file" accept="audio/*,video/*,.mp3,.m4a,.wav,.aac,.flac,.ogg,.mp4,.mov,.webm" hidden />
+              <svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="20" /><circle cx="24" cy="24" r="13" opacity=".35" /><circle cx="24" cy="24" r="8" opacity=".35" /><circle cx="24" cy="24" r="3" class="fill" /></svg>
+              <strong>ファイルを開く</strong>
+              <span>音声・動画（写真ライブラリもOK）</span>
+            </label>
+            <button id="rec-tab" class="source-tile" type="button">
+              <svg viewBox="0 0 48 48" aria-hidden="true"><rect x="6" y="9" width="36" height="24" rx="3" /><path d="M18 40h12M24 33v7" /><path d="M21 16.5v9l7.5-4.5z" class="fill" /></svg>
+              <strong class="label">タブの音を録音</strong>
+              <span>YouTube などを別タブで再生</span>
+            </button>
+            <button id="rec-mic" class="source-tile" type="button">
+              <svg viewBox="0 0 48 48" aria-hidden="true"><rect x="18" y="6" width="12" height="22" rx="6" /><path d="M12 22a12 12 0 0 0 24 0M24 34v8M17 42h14" /></svg>
+              <strong class="label">マイクで録音</strong>
+              <span>スピーカーの音や自分の演奏を</span>
+            </button>
+          </div>
+          <p id="rec-status" class="status" aria-live="polite"></p>
+          <button id="extract-audio" class="btn" hidden>動画を再生して音声を取り出す</button>
+
+          <details class="hint" id="youtube-hint">
+            <summary>YouTube の音から楽譜にするには？</summary>
+            <div class="only-desktop">
+              <p class="hint-title">パソコン（Chrome / Edge）</p>
+              <ol>
+                <li>YouTube の動画を<strong>別のタブ</strong>で開いておきます。</li>
+                <li>「タブの音を録音」を押し、<strong>その YouTube のタブ</strong>を選んで<strong>「タブの音声も共有する」をオン</strong>にします。</li>
+                <li>YouTube のタブで、書き起こしたい部分を再生します。</li>
+                <li>ここに戻って「録音を止める」を押すと読み込まれます。</li>
+              </ol>
+            </div>
+            <div class="only-ios">
+              <p class="hint-title">iPhone / iPad（画面収録を使う）</p>
+              <ol>
+                <li>コントロールセンターに「画面収録」が無ければ、<strong>設定 → コントロールセンター</strong>で追加します。</li>
+                <li>YouTube で書き起こしたい部分の少し前まで動画を進めておきます。</li>
+                <li>コントロールセンターの<strong>画面収録ボタン（◉）</strong>を押し、3秒後に YouTube を再生します。</li>
+                <li>終わったら画面上部の赤いマークから収録を止めます（「写真」に保存されます）。</li>
+                <li>ここで「ファイルを開く」→<strong>「写真ライブラリ」</strong>からその動画を選びます。</li>
+              </ol>
+            </div>
+            <p class="small muted">録音した音源や楽譜は個人の練習用にとどめ、著作権に気をつけて使ってください。</p>
+          </details>
+        </article>
+
+        <article class="card" id="player-card" hidden>
+          <header class="step-head">
+            <span class="step-no">II</span>
+            <h2>聴いて、範囲をえらぶ</h2>
+          </header>
+          <p class="small muted">波形をなぞると範囲を選択、タップでその位置へ。<span class="only-desktop"><span class="kbd">Space</span> で再生 / 停止。</span></p>
+          <div class="wave-wrap"><canvas id="waveform" class="waveform"></canvas></div>
+          <div class="transport">
+            <button id="play" class="play-btn" aria-label="再生">
+              <svg class="i-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l11-6.5z" /></svg>
+              <svg class="i-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h4v14H7zM13 5h4v14h-4z" /></svg>
+            </button>
+            <div class="transport-info">
+              <span id="time" class="time">0:00.0</span>
+              <span id="sel-info" class="small muted"></span>
+            </div>
+            <label class="toggle">
+              <input type="checkbox" id="loop" />
+              <span class="toggle-ui" aria-hidden="true"></span>
+              <span>ループ</span>
+            </label>
+          </div>
+          <div class="speed-row">
+            <span class="mini-label">Tempo</span>
+            <div class="chips" id="speed-chips">
+              <button data-rate="0.5">50%</button>
+              <button data-rate="0.6">60%</button>
+              <button data-rate="0.75">75%</button>
+              <button data-rate="0.9">90%</button>
+              <button data-rate="1">100%</button>
+            </div>
+            <input type="range" id="speed" min="0.25" max="1" step="0.05" value="1" aria-label="再生速度" />
+            <output id="speed-val" class="mono">100%</output>
+          </div>
+          <button id="clear-sel" class="btn ghost small-btn" hidden>選択を解除</button>
+        </article>
+
+        <article class="card" id="analyze-card" hidden>
+          <header class="step-head">
+            <span class="step-no">III</span>
+            <h2>音をひろう</h2>
+          </header>
+          <div class="field">
+            <span class="field-label">音源の種類</span>
+            <select id="engine" data-seg>
+              <option value="poly">バンド演奏（AI 解析）</option>
+              <option value="mono">ソロ楽器だけ（高速）</option>
+            </select>
+          </div>
+          <div class="field-grid">
+            <label class="field">
+              <span class="field-label">ひろうメロディの楽器</span>
+              <select id="range-preset"></select>
+            </label>
+            <label class="field">
+              <span class="field-label">感度</span>
+              <input type="range" id="sensitivity" min="0" max="1" step="0.05" value="0.5" />
+            </label>
+          </div>
+          <button id="analyze" class="btn primary wide">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h2l2-6 3 12 3-9 2 5 2-2h2" /></svg>
+            解析する
+          </button>
+          <div class="progress-wrap" id="analyze-progress-wrap">
+            <progress id="analyze-progress" max="1" value="0" hidden></progress>
+          </div>
+          <p id="analyze-status" class="status" aria-live="polite"></p>
+          <p class="small muted">範囲を選ばなければ全体を解析します。ソロの1コーラスなど、30秒〜1分くらいずつがおすすめです。</p>
+        </article>
+
+        <article class="card" id="result-card" hidden>
+          <header class="step-head">
+            <span class="step-no">IV</span>
+            <h2>テナー譜に仕上げる</h2>
+          </header>
+
+          <div class="settings">
+            <fieldset class="group">
+              <legend>テンポ</legend>
+              <div class="tempo-row">
+                <input type="number" id="bpm" min="30" max="400" step="1" value="120" aria-label="BPM" />
+                <span class="unit">BPM</span>
+              </div>
+              <div class="chips">
+                <button id="bpm-detect">自動</button>
+                <button id="bpm-tap">タップ</button>
+                <button id="bpm-half">÷2</button>
+                <button id="bpm-double">×2</button>
+              </div>
+              <label class="field">
+                <span class="field-label">1小節目の頭（秒）</span>
+                <span class="inline-row">
+                  <input type="number" id="downbeat" step="0.01" value="0" />
+                  <button id="downbeat-here" class="btn ghost small-btn" title="再生を1拍目で止めてから押す">今の位置</button>
+                </span>
+              </label>
+            </fieldset>
+
+            <fieldset class="group">
+              <legend>リズム</legend>
+              <div class="field">
+                <span class="field-label">拍子</span>
+                <select id="meter" data-seg>
+                  <option value="4">4/4</option>
+                  <option value="3">3/4</option>
+                </select>
+              </div>
+              <label class="field">
+                <span class="field-label">細かさ</span>
+                <select id="subdivision">
+                  <option value="8th+triplet">8分 + 3連（おすすめ）</option>
+                  <option value="8th">8分まで</option>
+                  <option value="16th">16分まで</option>
+                  <option value="triplet">3連のみ</option>
+                </select>
+              </label>
+              <label class="field">
+                <span class="field-label">スウィング <output id="swing-val"></output></span>
+                <input type="range" id="swing" min="0.5" max="0.72" step="0.01" value="0.62" />
+              </label>
+              <label class="toggle">
+                <input type="checkbox" id="legato" checked />
+                <span class="toggle-ui" aria-hidden="true"></span>
+                <span>短い隙間を埋める</span>
+              </label>
+            </fieldset>
+
+            <fieldset class="group">
+              <legend>キー</legend>
+              <label class="field">
+                <span class="field-label">調（コンサートキー）</span>
+                <select id="key"></select>
+              </label>
+              <label class="field">
+                <span class="field-label">オクターブ</span>
+                <select id="octave">
+                  <option value="auto">自動（テナーの音域に合わせる）</option>
+                  <option value="0">実音の長9度上（標準）</option>
+                  <option value="-1">1オクターブ下げる</option>
+                  <option value="1">1オクターブ上げる</option>
+                </select>
+              </label>
+              <label class="field">
+                <span class="field-label">タイトル</span>
+                <input type="text" id="title" value="" placeholder="曲名" />
+              </label>
+            </fieldset>
+          </div>
+
+          <div class="roll-head">
+            <h3>Piano Roll</h3>
+            <p class="small muted">音名はテナー譜での読み。間違って拾った音はタップで除外できます。</p>
+          </div>
+          <div class="pianoroll-wrap"><canvas id="pianoroll"></canvas></div>
+
+          <p id="transcribe-info" class="info"></p>
+          <div class="sheet">
+            <div id="score-transcribe" class="score"></div>
+          </div>
+          <div class="actions">
+            <button id="synth-play" class="btn">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V6l10-2v12" /><circle cx="7" cy="18" r="2.5" /><circle cx="17" cy="16" r="2.5" /></svg>
+              <span class="label">音で確認</span>
+            </button>
+            <button id="dl-transcribe" class="btn">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14" /></svg>
+              MusicXML
+            </button>
+            <button id="print-transcribe" class="btn">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 9V4h10v5M7 17H4v-7h16v7h-3M7 14h10v6H7z" /></svg>
+              印刷 / PDF
+            </button>
+          </div>
+        </article>
+      </section>
+
+      <!-- ===================== 移調 ===================== -->
+      <section id="tab-transpose" class="tab-panel" role="tabpanel" hidden>
+        <article class="card">
+          <header class="step-head">
+            <span class="step-no">I</span>
+            <h2>楽譜ファイルを開く</h2>
+          </header>
+          <p class="lead">in C・in E♭・in F などで書かれた楽譜を、テナーサックス (in B♭) の楽譜に。コードネームも一緒に移調します。</p>
+          <label class="source-tile is-primary single">
+            <input type="file" id="score-file" accept=".musicxml,.xml,.mxl,application/vnd.recordare.musicxml+xml,application/vnd.recordare.musicxml" hidden />
+            <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M12 6h17l9 9v27H12z" /><path d="M29 6v9h9" /><path d="M18 24h14M18 29h14M18 34h14" opacity=".5" /></svg>
+            <strong>MusicXML を開く</strong>
+            <span>.musicxml / .xml / .mxl（MuseScore などで書き出したもの）</span>
+          </label>
+          <p id="score-status" class="status" aria-live="polite"></p>
+          <details class="hint">
+            <summary>PDF や画像の楽譜しかないときは？</summary>
+            <p>PDF・画像は、楽譜認識ソフトで MusicXML に変換してから開いてください。</p>
+            <ul>
+              <li><a href="https://musescore.org/" target="_blank" rel="noopener">MuseScore</a>（無料）の「PDF を読み込む」</li>
+              <li><a href="https://github.com/Audiveris/audiveris" target="_blank" rel="noopener">Audiveris</a>（無料の楽譜認識ソフト）</li>
+              <li>スマホアプリ（PlayScore 2、Newzik など）</li>
+            </ul>
+          </details>
+        </article>
+
+        <article class="card" id="transpose-options" hidden>
+          <header class="step-head">
+            <span class="step-no">II</span>
+            <h2>テナー譜にする</h2>
+          </header>
+          <div class="field-grid">
+            <div class="field">
+              <span class="field-label">移調するパート</span>
+              <div id="parts" class="parts"></div>
+            </div>
+            <label class="field">
+              <span class="field-label">元の楽譜は</span>
+              <select id="source">
+                <option value="auto">自動判定</option>
+              </select>
+            </label>
+            <label class="field">
+              <span class="field-label">オクターブ</span>
+              <select id="transpose-octave">
+                <option value="auto">自動（テナーの音域に合わせる）</option>
+                <option value="-1">実音の長2度上（Real Book B♭版と同じ）</option>
+                <option value="0">実音の長9度上（標準）</option>
+              </select>
+            </label>
+          </div>
+          <p id="transpose-info" class="info"></p>
+          <div class="sheet">
+            <div id="score-transpose" class="score"></div>
+          </div>
+          <div class="actions">
+            <button id="dl-transpose" class="btn">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14" /></svg>
+              MusicXML
+            </button>
+            <button id="print-transpose" class="btn">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 9V4h10v5M7 17H4v-7h16v7h-3M7 14h10v6H7z" /></svg>
+              印刷 / PDF
+            </button>
+          </div>
+        </article>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <svg class="footer-staff" viewBox="0 0 200 24" preserveAspectRatio="none" aria-hidden="true"><path d="M0 2h200M0 7h200M0 12h200M0 17h200M0 22h200" /></svg>
+      <p>音源やファイルはこの端末の中だけで処理され、どこにも送信されません。</p>
+      <p class="only-ios">Safari の共有ボタン →「ホーム画面に追加」でアプリのように使えます。</p>
+      <p class="credits">AI: <a href="https://github.com/spotify/basic-pitch-ts" target="_blank" rel="noopener">Spotify Basic Pitch</a> · Score: <a href="https://opensheetmusicdisplay.org/" target="_blank" rel="noopener">OpenSheetMusicDisplay</a></p>
+    </footer>
+
+    <script>
+      // GitHub Pages が「Deploy from a branch」の設定だと、組み立て前のこのファイルがそのまま公開されて動かない。
+      // その場合は、組み立て済みのアプリ (app/ フォルダ) へ移動する。
+      // (組み立て後の index.html では上の src が書き換わるので、この処理は起きない)
+      if (/github\.io$/.test(location.hostname) && document.querySelector('script[src="/src/main.ts"]')) {
+        location.replace('app/' + location.hash);
+      }
+    </script>
+  </body>
+</html>

@@ -1,8 +1,6 @@
 import '@fontsource/playfair-display/latin-600-italic.css';
 import '@fontsource/playfair-display/latin-700-italic.css';
 import '@fontsource/playfair-display/latin-600.css';
-import '@fontsource/zen-old-mincho/japanese-700.css';
-import '@fontsource/zen-old-mincho/latin-700.css';
 import './style.css';
 import { isIOS, isTouch, preferPlaybackAudioSession } from './platform';
 import { enhanceSegmented } from './ui/dom';
