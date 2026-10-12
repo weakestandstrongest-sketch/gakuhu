@@ -25,8 +25,8 @@
         }, 3000);
       });
     </script>
-    <script type="module" crossorigin src="./assets/index-ntZODdsK.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-mwZ6MI8X.css">
+    <script type="module" crossorigin src="./assets/index-DFv03PhT.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-CD_Litqf.css">
   </head>
   <body>
     <div class="ambience" aria-hidden="true"></div>
@@ -211,6 +211,11 @@
                 <button id="bpm-half">÷2</button>
                 <button id="bpm-double">×2</button>
               </div>
+              <label class="toggle">
+                <input type="checkbox" id="follow-tempo" checked />
+                <span class="toggle-ui" aria-hidden="true"></span>
+                <span>テンポの揺れに合わせる</span>
+              </label>
               <label class="field">
                 <span class="field-label">1小節目の頭（秒）</span>
                 <span class="inline-row">
@@ -273,9 +278,36 @@
 
           <div class="roll-head">
             <h3>Piano Roll</h3>
-            <p class="small muted">音名はテナー譜での読み。間違って拾った音はタップで除外できます。</p>
+            <p class="small muted">音名はテナー譜での読み。音をタップして選ぶと、下のボタンで直せます。</p>
           </div>
           <div class="pianoroll-wrap"><canvas id="pianoroll"></canvas></div>
+          <div class="roll-tools" id="roll-tools">
+            <span id="sel-note" class="sel-note">音を選んでください</span>
+            <div class="tool-group" role="group" aria-label="高さ">
+              <button data-act="down" title="半音下げる (↓)" aria-label="半音下げる">−½</button>
+              <button data-act="up" title="半音上げる (↑)" aria-label="半音上げる">+½</button>
+              <button data-act="oct-down" title="1オクターブ下げる (Shift+↓)">8vb</button>
+              <button data-act="oct-up" title="1オクターブ上げる (Shift+↑)">8va</button>
+            </div>
+            <div class="tool-group" role="group" aria-label="位置と長さ">
+              <button data-act="earlier" title="前へずらす (←)" aria-label="前へ">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6" /></svg>
+              </button>
+              <button data-act="later" title="後ろへずらす (→)" aria-label="後ろへ">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
+              </button>
+              <button data-act="shorter" title="短くする (Shift+←)">短く</button>
+              <button data-act="longer" title="長くする (Shift+→)">長く</button>
+            </div>
+            <div class="tool-group" role="group" aria-label="追加と削除">
+              <button data-act="delete" id="act-delete" title="削除 (Delete)">削除</button>
+              <button data-act="add" title="再生位置に音を追加">＋追加</button>
+              <button data-act="undo" id="act-undo" title="元に戻す (⌘Z / Ctrl+Z)">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14L4 9l5-5" /><path d="M4 9h10a6 6 0 0 1 0 12h-3" /></svg>
+                戻す
+              </button>
+            </div>
+          </div>
 
           <p id="transcribe-info" class="info"></p>
           <div class="sheet">

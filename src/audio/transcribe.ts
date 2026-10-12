@@ -48,9 +48,14 @@ export async function transcribeMonophonic(samples: Float32Array, opts: RangeOpt
   return res.notes.filter((n) => n.midi >= opts.minMidi && n.midi <= opts.maxMidi);
 }
 
-export async function detectTempo(samples: Float32Array): Promise<TempoEstimate | null> {
-  const res = await runWorker<{ tempo: TempoEstimate | null }>({ kind: 'tempo', samples, sampleRate: ANALYSIS_SAMPLE_RATE });
-  return res.tempo;
+export interface RhythmAnalysis {
+  tempo: TempoEstimate | null;
+  /** 音の立ち上がりの強さ (拍の追跡に使う) */
+  onset: { env: Float32Array; fps: number; offsetSeconds: number };
+}
+
+export async function analyzeRhythm(samples: Float32Array): Promise<RhythmAnalysis> {
+  return runWorker<RhythmAnalysis>({ kind: 'tempo', samples, sampleRate: ANALYSIS_SAMPLE_RATE });
 }
 
 // Spotify の Basic Pitch (AI モデル) で伴奏込みの音源から音を拾う。

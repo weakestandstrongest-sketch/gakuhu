@@ -66,3 +66,20 @@ export class NoteSynth {
     return this.nodes.length > 0;
   }
 }
+
+/** 音を直したときに、その高さを短く鳴らして確認する */
+export function blip(midi: number, seconds = 0.35): void {
+  const ctx = audioContext();
+  const t = ctx.currentTime + 0.01;
+  const osc = ctx.createOscillator();
+  osc.type = 'triangle';
+  osc.frequency.value = midiToFrequency(midi);
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0, t);
+  g.gain.linearRampToValueAtTime(0.25, t + 0.015);
+  g.gain.setValueAtTime(0.2, t + seconds - 0.05);
+  g.gain.linearRampToValueAtTime(0, t + seconds);
+  osc.connect(g).connect(ctx.destination);
+  osc.start(t);
+  osc.stop(t + seconds + 0.02);
+}

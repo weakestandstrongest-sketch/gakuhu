@@ -77,8 +77,14 @@ export interface TempoEstimate {
   firstBeat: number;
 }
 
+export type OnsetEnvelope = ReturnType<typeof onsetEnvelope>;
+
 export function estimateTempo(samples: Float32Array, sampleRate: number, minBpm = 60, maxBpm = 300): TempoEstimate | null {
-  const { env, fps, offsetSeconds } = onsetEnvelope(samples, sampleRate);
+  return estimateTempoFromOnset(onsetEnvelope(samples, sampleRate), minBpm, maxBpm);
+}
+
+export function estimateTempoFromOnset(onset: OnsetEnvelope, minBpm = 60, maxBpm = 300): TempoEstimate | null {
+  const { env, fps, offsetSeconds } = onset;
   if (env.length < fps * 3) return null;
   const minLag = Math.floor((60 / maxBpm) * fps);
   const maxLag = Math.ceil((60 / minBpm) * fps);

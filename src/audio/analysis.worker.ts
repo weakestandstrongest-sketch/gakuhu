@@ -1,5 +1,5 @@
 /// <reference lib="webworker" />
-import { estimateTempo } from './tempo';
+import { estimateTempoFromOnset, onsetEnvelope } from './tempo';
 import { segmentNotes, trackPitch } from './yin';
 
 // 重い解析 (YIN・テンポ推定) を画面が固まらないよう別スレッドで動かす
@@ -21,7 +21,9 @@ self.onmessage = (e: MessageEvent<WorkerRequest>) => {
       const notes = segmentNotes(track, { silenceDb: -25 - 25 * req.sensitivity });
       self.postMessage({ kind: 'done', notes });
     } else {
-      self.postMessage({ kind: 'done', tempo: estimateTempo(req.samples, req.sampleRate) });
+      // テンポの推定に加えて、拍を1つずつ追いかけるための「音の立ち上がりの強さ」も返す
+      const onset = onsetEnvelope(req.samples, req.sampleRate);
+      self.postMessage({ kind: 'done', tempo: estimateTempoFromOnset(onset), onset });
     }
   } catch (err) {
     self.postMessage({ kind: 'error', message: String(err) });

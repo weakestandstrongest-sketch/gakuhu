@@ -1,3 +1,4 @@
+import { BeatMap } from './beats';
 import { DetectedNote, QuantizedNote, QuantizedScore, TICKS_PER_BEAT } from './notes';
 
 // 検出した音 (秒) を拍のグリッドに合わせる。
@@ -16,6 +17,8 @@ export interface QuantizeOptions {
   swing: number;
   /** 次の音までの短い隙間を埋めて読みやすくする */
   legato: boolean;
+  /** テンポの揺れに追従した拍の位置 (無ければ bpm で等間隔) */
+  beats?: BeatMap | null;
 }
 
 type Scheme = 'eighth' | 'sixteenth' | 'triplet';
@@ -50,8 +53,10 @@ function snapFrac(frac: number, scheme: Scheme, swing: number): { tick: number; 
 export function quantize(input: DetectedNote[], opts: QuantizeOptions): QuantizedScore {
   const tpm = opts.beatsPerMeasure * TICKS_PER_BEAT;
   const notes = input.filter((n) => !n.excluded).sort((a, b) => a.start - b.start);
-  const secPerBeat = 60 / opts.bpm;
-  const toBeats = (t: number) => (t - opts.downbeat) / secPerBeat;
+  // 時刻 → 1小節目の頭を 0 とした拍の位置
+  const map = opts.beats ?? BeatMap.uniform(opts.bpm, opts.downbeat);
+  const origin = Math.round(map.toBeats(opts.downbeat));
+  const toBeats = (t: number) => map.toBeats(t) - origin;
 
   // 拍ごとに 8分系 / 3連系 のどちらで書くかを決める
   const defaultScheme: Scheme = opts.subdivision === '16th' ? 'sixteenth' : opts.subdivision === 'triplet' ? 'triplet' : 'eighth';
@@ -108,7 +113,7 @@ export function quantize(input: DetectedNote[], opts: QuantizeOptions): Quantize
     if (opts.legato && next - q[i].end > 0 && next - q[i].end <= 6) q[i].end = next;
   }
   if (q.length === 0) {
-    return { notes: [], ticksPerMeasure: tpm, measureCount: 1, startTime: opts.downbeat };
+    return { notes: [], ticksPerMeasure: tpm, measureCount: 1, startTime: map.toTime(origin) };
   }
   const firstMeasure = Math.floor(q[0].start / tpm);
   const lastTick = Math.max(...q.map((n) => n.end));
@@ -118,6 +123,6 @@ export function quantize(input: DetectedNote[], opts: QuantizeOptions): Quantize
     notes: q.map((n) => ({ start: n.start - offset, end: n.end - offset, midi: n.midi })),
     ticksPerMeasure: tpm,
     measureCount,
-    startTime: opts.downbeat + firstMeasure * opts.beatsPerMeasure * secPerBeat,
+    startTime: map.toTime(origin + firstMeasure * opts.beatsPerMeasure),
   };
 }

@@ -1,13 +1,15 @@
 import { DecodeError, decodeAudio, decodeViaPlayback, renderMono } from '../audio/load';
 import { Player } from '../audio/player';
 import { Recorder, canCaptureTab } from '../audio/record';
-import { NoteSynth, SynthNote } from '../audio/synth';
-import { detectTempo, transcribeMonophonic, transcribePolyphonic } from '../audio/transcribe';
-import { KeyEstimate, estimateKey, extractMelody } from '../music/analysis';
+import { CREPE_SAMPLE_RATE, crepePitch } from '../audio/crepe';
+import { NoteSynth, SynthNote, blip } from '../audio/synth';
+import { RhythmAnalysis, analyzeRhythm, transcribeMonophonic, transcribePolyphonic } from '../audio/transcribe';
+import { KeyEstimate, PitchContour, estimateKey, extractMelody, refineWithContour } from '../music/analysis';
+import { BeatMap, trackBeats } from '../music/beats';
 import { TENOR_CONCERT_TO_WRITTEN, chooseOctaveShift, countOutOfRange } from '../music/instruments';
 import { writeTenorMusicXml } from '../music/musicxml-write';
 import { DetectedNote, QuantizedScore, TICKS_PER_BEAT } from '../music/notes';
-import { keyName, transposeKey } from '../music/pitch';
+import { keyName, pitchNameWithOctave, spellMidi, transposeKey } from '../music/pitch';
 import { Subdivision, quantize } from '../music/quantize';
 import { $, debounce, download, formatTime, printScore, safeFileName, setStatus } from './dom';
 import { PianoRoll } from './pianoroll';
@@ -73,6 +75,11 @@ export function setupTranscribeTab(): void {
     bpmDetect: $<HTMLButtonElement>('bpm-detect'),
     downbeat: $<HTMLInputElement>('downbeat'),
     downbeatHere: $<HTMLButtonElement>('downbeat-here'),
+    followTempo: $<HTMLInputElement>('follow-tempo'),
+    rollTools: $('roll-tools'),
+    selNote: $('sel-note'),
+    actDelete: $<HTMLButtonElement>('act-delete'),
+    actUndo: $<HTMLButtonElement>('act-undo'),
     meter: $<HTMLSelectElement>('meter'),
     subdivision: $<HTMLSelectElement>('subdivision'),
     swing: $<HTMLInputElement>('swing'),
@@ -93,7 +100,9 @@ export function setupTranscribeTab(): void {
   let selection: { start: number; end: number } | null = null;
   let notes: DetectedNote[] = [];
   let analyzedRange = { start: 0, end: 0 };
-  let analyzedSamples: Float32Array | null = null;
+  let rhythm: RhythmAnalysis | null = null;
+  const beatCache = new Map<number, BeatMap | null>();
+  let undoStack: DetectedNote[][] = [];
   let detectedKey: KeyEstimate = { fifths: 0, minor: false };
   let quantized: QuantizedScore | null = null;
   let lastXml = '';
@@ -268,20 +277,39 @@ export function setupTranscribeTab(): void {
     setStatus(el.analyzeStatus, '準備中…');
     try {
       const samples = await renderMono(buffer, range.start, range.end);
+      const stage = (label: string, from: number, to: number) => (p: number) => {
+        el.progress.value = from + (to - from) * p;
+        setStatus(el.analyzeStatus, `${label} ${Math.round((from + (to - from) * p) * 100)}%`);
+      };
+
+      // 1. 音を拾う
       let found: DetectedNote[];
       if (el.engine.value === 'poly') {
-        const all = await transcribePolyphonic(samples, opts, (p, stage) => {
-          el.progress.value = p;
-          setStatus(el.analyzeStatus, `${stage} ${Math.round(p * 100)}%`);
-        });
-        found = extractMelody(all, { minMidi: preset.min, maxMidi: preset.max });
+        found = await transcribePolyphonic(samples, opts, (p, label) => stage(label, 0, 0.6)(p));
       } else {
-        setStatus(el.analyzeStatus, '解析中…');
-        found = await transcribeMonophonic(samples, opts, (p) => (el.progress.value = p));
+        found = await transcribeMonophonic(samples, opts, stage('音を拾っています…', 0, 0.4));
       }
+
+      // 2. 音の高さ専門の AI (CREPE) で高さを確かめる (使えなければ省略)
+      let contour: PitchContour | null = null;
+      try {
+        const s16 = await renderMono(buffer, range.start, range.end, CREPE_SAMPLE_RATE);
+        contour = await crepePitch(s16, 0, stage('音の高さを確かめています…', el.engine.value === 'poly' ? 0.6 : 0.4, 0.95));
+      } catch (e) {
+        console.warn('CREPE を使えませんでした', e);
+      }
+      const rangeOpts = { minMidi: preset.min, maxMidi: preset.max };
+      if (el.engine.value === 'poly') found = extractMelody(found, { ...rangeOpts, contour });
+      if (contour) found = refineWithContour(found, contour, rangeOpts);
+
+      // 3. リズム (テンポと、揺れに追従するための拍の手がかり)
+      setStatus(el.analyzeStatus, 'リズムを調べています…');
+      rhythm = await analyzeRhythm(samples);
+      beatCache.clear();
+
       notes = found.map((n, i) => ({ ...n, id: i, start: n.start + range.start }));
+      undoStack = [];
       analyzedRange = range;
-      analyzedSamples = samples;
       if (notes.length === 0) {
         setStatus(el.analyzeStatus, '音が見つかりませんでした。感度を上げるか、音域の設定を変えてみてください。', true);
         return;
@@ -290,9 +318,10 @@ export function setupTranscribeTab(): void {
 
       detectedKey = estimateKey(notes);
       el.key.options[0].text = `自動（推定: ${keyName(detectedKey.fifths, false)} / ${keyName(detectedKey.fifths, true)}）`;
-      await detectBpm(false);
+      detectBpm(false);
       el.resultCard.hidden = false;
       roll.set(notes, range);
+      updateTools();
       regenerate();
       el.resultCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
     } catch (e) {
@@ -304,26 +333,32 @@ export function setupTranscribeTab(): void {
     }
   }
 
-  async function detectBpm(userRequested: boolean) {
-    if (!analyzedSamples) return;
-    el.bpmDetect.disabled = true;
-    try {
-      const tempo = await detectTempo(analyzedSamples);
-      if (!tempo) {
-        if (userRequested) alert('テンポを推定できませんでした。タップで入力してください。');
-        return;
-      }
-      const spb = 60 / tempo.bpm;
-      // 最初の音の直前 (またはちょうど) の拍を1拍目にする
-      const firstBeat = analyzedRange.start + tempo.firstBeat;
-      const firstNote = notes.find((n) => !n.excluded)?.start ?? firstBeat;
-      const k = Math.floor((firstNote - firstBeat) / spb + 0.25);
-      el.bpm.value = String(Math.round(tempo.bpm));
-      el.downbeat.value = (firstBeat + k * spb).toFixed(2);
-      if (userRequested) regenerate();
-    } finally {
-      el.bpmDetect.disabled = false;
+  /** テンポ (目安) をもとに、演奏の揺れに追従した拍の位置を求める */
+  function beatMapFor(bpm: number): BeatMap | null {
+    if (!rhythm) return null;
+    const key = Math.round(bpm * 10);
+    if (!beatCache.has(key)) {
+      const { env, fps, offsetSeconds } = rhythm.onset;
+      const times = trackBeats(env, fps, bpm).map((f) => analyzedRange.start + f / fps + offsetSeconds);
+      beatCache.set(key, times.length >= 4 ? new BeatMap(times) : null);
     }
+    return beatCache.get(key)!;
+  }
+
+  function detectBpm(userRequested: boolean) {
+    const tempo = rhythm?.tempo;
+    if (!tempo) {
+      if (userRequested) alert('テンポを推定できませんでした。タップで入力してください。');
+      return;
+    }
+    el.bpm.value = String(Math.round(tempo.bpm));
+    const map =
+      (el.followTempo.checked && beatMapFor(Math.round(tempo.bpm))) || BeatMap.uniform(tempo.bpm, analyzedRange.start + tempo.firstBeat);
+    // 最初の音の直前 (またはちょうど) の拍を1拍目にする
+    const firstNote = notes.find((n) => !n.excluded)?.start ?? map.toTime(0);
+    const k = Math.floor(map.toBeats(firstNote) + 0.25);
+    el.downbeat.value = map.toTime(k).toFixed(2);
+    if (userRequested) regenerate();
   }
 
   // ---------- 楽譜にする ----------
@@ -335,6 +370,7 @@ export function setupTranscribeTab(): void {
     const writtenFifths = transposeKey(concertFifths, TENOR_CONCERT_TO_WRITTEN).fifths;
     return {
       bpm,
+      beats: el.followTempo.checked ? beatMapFor(bpm) : null,
       downbeat: Number(el.downbeat.value) || 0,
       beatsPerMeasure,
       subdivision: el.subdivision.value as Subdivision,
@@ -357,7 +393,8 @@ export function setupTranscribeTab(): void {
   function regenerate() {
     if (notes.length === 0) return;
     const s = readSettings();
-    roll.setGrid({ bpm: s.bpm, downbeat: s.downbeat, beatsPerMeasure: s.beatsPerMeasure }, s.writtenFifths);
+    const map = s.beats ?? BeatMap.uniform(s.bpm, s.downbeat);
+    roll.setGrid({ beats: map, origin: Math.round(map.toBeats(s.downbeat)), beatsPerMeasure: s.beatsPerMeasure }, s.writtenFifths);
 
     quantized = quantize(notes, s);
     const active = notes.filter((n) => !n.excluded);
@@ -383,13 +420,141 @@ export function setupTranscribeTab(): void {
   }
   const regenerateSoon = debounce(regenerate, 250);
 
-  for (const input of [el.bpm, el.downbeat, el.meter, el.subdivision, el.swing, el.key, el.octave, el.title, el.legato]) {
+  for (const input of [el.bpm, el.downbeat, el.meter, el.subdivision, el.swing, el.key, el.octave, el.title, el.legato, el.followTempo]) {
     input.addEventListener(input instanceof HTMLInputElement && input.type !== 'checkbox' ? 'input' : 'change', regenerateSoon);
   }
   el.key.add(new Option('自動', 'auto'));
   for (const f of KEY_CHOICES) el.key.add(new Option(`${keyName(f)} / ${keyName(f, true)}（テナー譜: ${keyName(transposeKey(f, TENOR_CONCERT_TO_WRITTEN).fifths)}）`, String(f)));
 
-  roll.onToggle = () => regenerateSoon();
+  // ---------- ピアノロールでの修正 ----------
+  function pushUndo() {
+    undoStack.push(notes.map((n) => ({ ...n })));
+    if (undoStack.length > 80) undoStack.shift();
+  }
+
+  function updateTools() {
+    const n = roll.selected;
+    for (const b of el.rollTools.querySelectorAll<HTMLButtonElement>('button[data-act]')) {
+      const act = b.dataset.act;
+      b.disabled = act === 'add' ? notes.length === 0 : act === 'undo' ? undoStack.length === 0 : !n;
+    }
+    el.actDelete.textContent = n?.excluded ? '戻す' : '削除';
+    if (n) {
+      const name = pitchNameWithOctave(spellMidi(n.midi + 14, readSettings().writtenFifths));
+      el.selNote.innerHTML = `<b>${name}</b>テナー譜の音名 ・ ${formatTime(n.start)} から ${n.duration.toFixed(2)} 秒${n.excluded ? '（除外中）' : ''}`;
+    } else {
+      el.selNote.textContent = '音をタップして選んでください（何もない所をタップ →「＋追加」でその位置に音を足せます）';
+    }
+  }
+
+  function afterEdit() {
+    notes.sort((a, b) => a.start - b.start);
+    roll.replaceNotes(notes, roll.selected);
+    updateTools();
+    regenerateSoon();
+  }
+
+  roll.onSelect = (n) => {
+    updateTools();
+    if (n && !n.excluded) blip(n.midi);
+  };
+  roll.onBeforeChange = pushUndo;
+  roll.onChange = (n) => {
+    blip(n.midi);
+    afterEdit();
+  };
+
+  function applyEdit(act: string) {
+    const step = 60 / readSettings().bpm / 4; // 16分音符ぶん
+    if (act === 'undo') {
+      const prev = undoStack.pop();
+      if (!prev) return;
+      notes = prev;
+      roll.replaceNotes(notes, null);
+      updateTools();
+      regenerateSoon();
+      return;
+    }
+    if (act === 'add') {
+      pushUndo();
+      const t = Math.min(Math.max(player.currentTime, analyzedRange.start), analyzedRange.end - 0.05);
+      const before = [...notes].reverse().find((x) => x.start <= t && !x.excluded) ?? notes.find((x) => !x.excluded);
+      const added: DetectedNote = {
+        id: Math.max(-1, ...notes.map((x) => x.id)) + 1,
+        start: t,
+        duration: step * 2,
+        midi: before?.midi ?? 62,
+        amplitude: 0.8,
+      };
+      notes.push(added);
+      notes.sort((a, b) => a.start - b.start);
+      roll.replaceNotes(notes, null);
+      roll.select(added);
+      regenerateSoon();
+      return;
+    }
+    const n = roll.selected;
+    if (!n) return;
+    pushUndo();
+    switch (act) {
+      case 'up':
+        n.midi += 1;
+        break;
+      case 'down':
+        n.midi -= 1;
+        break;
+      case 'oct-up':
+        n.midi += 12;
+        break;
+      case 'oct-down':
+        n.midi -= 12;
+        break;
+      case 'earlier':
+        n.start = Math.max(analyzedRange.start, n.start - step);
+        break;
+      case 'later':
+        n.start = Math.min(analyzedRange.end - 0.05, n.start + step);
+        break;
+      case 'shorter':
+        n.duration = Math.max(step / 2, n.duration - step);
+        break;
+      case 'longer':
+        n.duration += step;
+        break;
+      case 'delete':
+        n.excluded = !n.excluded;
+        break;
+    }
+    if (/up|down/.test(act) && !n.excluded) blip(n.midi);
+    afterEdit();
+  }
+
+  el.rollTools.addEventListener('click', (e) => {
+    const b = (e.target as HTMLElement).closest<HTMLButtonElement>('button[data-act]');
+    if (b && !b.disabled) applyEdit(b.dataset.act!);
+  });
+
+  // パソコンではキーボードでも直せる
+  document.addEventListener('keydown', (e) => {
+    if (el.resultCard.hidden || $('tab-transcribe').hidden) return;
+    if (/^(INPUT|SELECT|TEXTAREA)$/.test((e.target as HTMLElement).tagName)) return;
+    const key = e.key;
+    let act: string | null = null;
+    if ((e.metaKey || e.ctrlKey) && key.toLowerCase() === 'z') act = 'undo';
+    else if (!roll.selected) return;
+    else if (key === 'ArrowUp') act = e.shiftKey ? 'oct-up' : 'up';
+    else if (key === 'ArrowDown') act = e.shiftKey ? 'oct-down' : 'down';
+    else if (key === 'ArrowLeft') act = e.shiftKey ? 'shorter' : 'earlier';
+    else if (key === 'ArrowRight') act = e.shiftKey ? 'longer' : 'later';
+    else if (key === 'Delete' || key === 'Backspace') act = 'delete';
+    else if (key === 'Escape') {
+      roll.select(null);
+      return;
+    }
+    if (!act) return;
+    e.preventDefault();
+    applyEdit(act);
+  });
 
   el.bpmHalf.addEventListener('click', () => {
     el.bpm.value = String(Math.round(Number(el.bpm.value) / 2));
