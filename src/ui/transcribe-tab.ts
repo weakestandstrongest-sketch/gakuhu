@@ -1,4 +1,4 @@
-import { decodeAudio, renderMono } from '../audio/load';
+import { DecodeError, decodeAudio, decodeViaPlayback, renderMono } from '../audio/load';
 import { Player } from '../audio/player';
 import { Recorder, canCaptureTab } from '../audio/record';
 import { NoteSynth, SynthNote } from '../audio/synth';
@@ -48,6 +48,7 @@ export function setupTranscribeTab(): void {
     recTab: $<HTMLButtonElement>('rec-tab'),
     recMic: $<HTMLButtonElement>('rec-mic'),
     recStatus: $('rec-status'),
+    extract: $<HTMLButtonElement>('extract-audio'),
     playerCard: $('player-card'),
     analyzeCard: $('analyze-card'),
     resultCard: $('result-card'),
@@ -98,14 +99,46 @@ export function setupTranscribeTab(): void {
   let tapTimes: number[] = [];
 
   // ---------- 音源の読み込み ----------
+  let pending: { blob: Blob; name: string } | null = null;
+
   async function loadAudio(blob: Blob, name: string) {
     setStatus(el.recStatus, '読み込み中…');
+    el.extract.hidden = true;
+    let decoded: AudioBuffer;
     try {
-      buffer = await decodeAudio(blob);
+      decoded = await decodeAudio(blob);
     } catch (e) {
-      setStatus(el.recStatus, (e as Error).message, true);
+      if (e instanceof DecodeError && e.canTryPlayback) {
+        // iPhone の .mov 動画など。ボタンを押してもらって (音を鳴らす許可が要るため) 再生しながら取り出す
+        pending = { blob, name };
+        el.extract.hidden = false;
+        setStatus(el.recStatus, 'このファイルは直接読み込めませんでした。下のボタンを押すと、動画を再生しながら音声を取り出します（動画の長さぶん時間がかかります）。');
+      } else {
+        setStatus(el.recStatus, (e as Error).message, true);
+      }
       return;
     }
+    applyAudio(blob, name, decoded);
+  }
+
+  el.extract.addEventListener('click', async () => {
+    if (!pending) return;
+    const { blob, name } = pending;
+    el.extract.disabled = true;
+    try {
+      const decoded = await decodeViaPlayback(blob, (p) => setStatus(el.recStatus, `音声を取り出し中… ${Math.round(p * 100)}%`));
+      pending = null;
+      el.extract.hidden = true;
+      applyAudio(blob, name, decoded);
+    } catch (e) {
+      setStatus(el.recStatus, `音声を取り出せませんでした: ${(e as Error).message}`, true);
+    } finally {
+      el.extract.disabled = false;
+    }
+  });
+
+  function applyAudio(blob: Blob, name: string, decoded: AudioBuffer) {
+    buffer = decoded;
     player.load(blob);
     player.setRate(Number(el.speed.value));
     el.playerCard.hidden = false;

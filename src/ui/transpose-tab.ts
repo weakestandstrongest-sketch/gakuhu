@@ -1,6 +1,7 @@
 import { SOURCE_INSTRUMENTS, SourceInstrument } from '../music/instruments';
 import { readScoreFile } from '../music/load-score';
 import { PartInfo, listParts, parseXml, transposeScoreForTenor } from '../music/musicxml-transpose';
+import { isIOS } from '../platform';
 import { $, download, printScore, safeFileName, setStatus } from './dom';
 import { ScoreView } from './score-view';
 
@@ -18,6 +19,8 @@ export function setupTransposeTab(): void {
   };
   const view = new ScoreView($('score-transpose'));
   for (const s of SOURCE_INSTRUMENTS) el.source.add(new Option(s.label, s.id));
+  // iPhone は .musicxml / .mxl の種類を知らないため、accept を付けるとファイルが選べなくなる
+  if (isIOS) el.file.removeAttribute('accept');
 
   let originalXml = '';
   let fileName = '';

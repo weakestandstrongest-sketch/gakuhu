@@ -48,6 +48,11 @@
   box-sizing: border-box;
 }
 
+/* .btn などの display 指定より hidden 属性を優先する */
+[hidden] {
+  display: none !important;
+}
+
 body {
   margin: 0;
   background: var(--bg);
@@ -447,4 +452,100 @@ progress {
   background: var(--playhead);
   pointer-events: none;
   display: none;
+}
+
+/* ===== 端末ごとの表示切り替え ===== */
+.only-ios {
+  display: none;
+}
+
+.ios .only-ios {
+  display: block;
+}
+
+.ios .only-desktop,
+.touch .only-desktop {
+  display: none;
+}
+
+/* ===== iPhone / スマホ ===== */
+body {
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+  -webkit-text-size-adjust: 100%;
+}
+
+.site-header {
+  padding-top: max(12px, env(safe-area-inset-top));
+}
+
+.site-footer {
+  padding-bottom: max(32px, env(safe-area-inset-bottom));
+}
+
+button,
+.btn,
+select,
+input[type='range'] {
+  touch-action: manipulation;
+}
+
+@media (max-width: 640px) {
+  main {
+    padding: 12px;
+  }
+
+  /* 画面の小さいスマホでは、ヘッダーを固定せず楽譜の表示場所を広くとる */
+  .site-header {
+    position: static;
+  }
+
+  /* 16px 未満だと iPhone は入力欄をタップしたときに拡大してしまう */
+  input[type='number'],
+  input[type='text'],
+  select,
+  textarea {
+    font-size: 16px;
+  }
+
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .tabs button {
+    padding: 10px 10px;
+    font-size: 0.9rem;
+  }
+
+  .card > .row.wrap > .btn,
+  .card > label.btn,
+  .actions .btn {
+    flex: 1 1 100%;
+    justify-content: center;
+  }
+
+  .card > label.btn {
+    display: flex;
+  }
+
+  .controls label.inline:has(#speed) {
+    flex: 1 1 100%;
+  }
+
+  #speed {
+    flex: 1;
+  }
+}
+
+.touch .btn {
+  min-height: 44px;
+}
+
+.touch .small-btn {
+  min-height: 36px;
+}
+
+.touch input[type='checkbox'] {
+  width: 20px;
+  height: 20px;
 }

@@ -2,9 +2,17 @@
 <html lang="ja">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#f6f3ee" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#17140f" media="(prefers-color-scheme: dark)" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Gakuhu" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+    <link rel="manifest" href="manifest.webmanifest" />
     <meta name="description" content="テナーサックス (in B♭) のための耳コピ・移調ツール。音源から楽譜を書き起こし、in C などの楽譜やコード譜をテナー用に移調します。" />
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🎷%3C/text%3E%3C/svg%3E" />
+    <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
     <title>Gakuhu — テナーサックスの耳コピ & 移調</title>
   </head>
   <body>
@@ -37,21 +45,36 @@
             <button id="rec-mic" class="btn">🎙️ マイクで録音</button>
           </div>
           <p id="rec-status" class="status" aria-live="polite"></p>
-          <details class="hint">
+          <button id="extract-audio" class="btn" hidden>🎬 動画を再生して音声を取り出す</button>
+          <details class="hint" id="youtube-hint">
             <summary>YouTube の音から楽譜にするには？</summary>
-            <ol>
-              <li>YouTube の動画を<strong>別のタブ</strong>で開いておきます。</li>
-              <li>「🖥️ 他のタブの音を録音」を押し、共有する画面で<strong>その YouTube のタブ</strong>を選び、<strong>「タブの音声も共有する」をオン</strong>にして共有します。</li>
-              <li>YouTube のタブで、書き起こしたい部分を再生します（ソロの部分だけで OK）。</li>
-              <li>このタブに戻って「⏹ 録音を止める」を押すと、録音した音が読み込まれます。</li>
-            </ol>
-            <p class="small">パソコンの Chrome / Edge で使えます。スマホの場合は画面収録した動画ファイルを「ファイルを開く」から読み込んでください。録音した音源や楽譜は個人の練習用にとどめ、著作権に気をつけて使ってください。</p>
+            <div class="only-desktop">
+              <p><strong>パソコン（Chrome / Edge）の場合</strong></p>
+              <ol>
+                <li>YouTube の動画を<strong>別のタブ</strong>で開いておきます。</li>
+                <li>「🖥️ 他のタブの音を録音」を押し、共有する画面で<strong>その YouTube のタブ</strong>を選び、<strong>「タブの音声も共有する」をオン</strong>にして共有します。</li>
+                <li>YouTube のタブで、書き起こしたい部分を再生します（ソロの部分だけで OK）。</li>
+                <li>このタブに戻って「⏹ 録音を止める」を押すと、録音した音が読み込まれます。</li>
+              </ol>
+            </div>
+            <div class="only-ios">
+              <p><strong>iPhone / iPad の場合（画面収録を使う）</strong></p>
+              <ol>
+                <li>コントロールセンターに「画面収録」が無ければ、<strong>設定 → コントロールセンター</strong>で追加します。</li>
+                <li>YouTube で書き起こしたい部分の少し前まで動画を進めておきます。</li>
+                <li>コントロールセンターの<strong>画面収録ボタン（◉）</strong>を押し、3秒後に YouTube を再生します。</li>
+                <li>ソロが終わったら画面上部の赤いマークから収録を止めます（動画は「写真」に保存されます）。</li>
+                <li>このページに戻り「🎵 音声・動画ファイルを開く」→<strong>「写真ライブラリ」</strong>からその動画を選びます。</li>
+              </ol>
+              <p class="small">別の機器（PC やスピーカー）で流している音を「🎙️ マイクで録音」で録る方法もあります。</p>
+            </div>
+            <p class="small">録音した音源や楽譜は個人の練習用にとどめ、著作権に気をつけて使ってください。</p>
           </details>
         </div>
 
         <div class="card" id="player-card" hidden>
           <h2><span class="num">2</span>聴いて、書き起こす範囲を選ぶ</h2>
-          <p class="small muted">波形をドラッグすると範囲を選択、クリックするとその位置へ移動します。<span class="kbd">Space</span> で再生/停止。</p>
+          <p class="small muted">波形をドラッグすると範囲を選択、クリックするとその位置へ移動します。<span class="only-desktop"><span class="kbd">Space</span> で再生/停止。</span></p>
           <canvas id="waveform" class="waveform"></canvas>
           <div class="row wrap controls">
             <button id="play" class="btn primary play-btn">▶ 再生</button>
@@ -240,6 +263,7 @@
 
     <footer class="site-footer">
       <p>音源やファイルはすべてこのブラウザの中だけで処理され、どこにも送信されません。</p>
+      <p class="only-ios">iPhone では Safari の共有ボタン → <strong>「ホーム画面に追加」</strong>でアプリのように使えます。一度使った機能はオフラインでも動きます。</p>
       <p>AI 音程解析: <a href="https://github.com/spotify/basic-pitch-ts" target="_blank" rel="noopener">Spotify Basic Pitch</a> (Apache-2.0) / 楽譜表示: <a href="https://opensheetmusicdisplay.org/" target="_blank" rel="noopener">OpenSheetMusicDisplay</a> (BSD-3-Clause)</p>
     </footer>
 

@@ -1,5 +1,6 @@
 import { DetectedNote } from '../music/notes';
 import { pitchName, spellMidi } from '../music/pitch';
+import { isTouch } from '../platform';
 import { cssVar } from './dom';
 
 // 検出した音のピアノロール。クリックで音を除外/復活できる。
@@ -12,8 +13,11 @@ export interface Grid {
 }
 
 const MAX_PX_PER_SEC = 120;
-const ROW = 9;
+/** 1半音の行の高さ。指で操作する端末ではタップしやすいよう大きくする */
+const ROW = isTouch ? 15 : 9;
 const LABEL_W = 36;
+/** iPhone の Safari はキャンバスの面積が約1677万ピクセルまでなので、それより小さく抑える */
+const MAX_CANVAS_PIXELS = 16_000_000;
 
 export class PianoRoll {
   private notes: DetectedNote[] = [];
@@ -38,7 +42,12 @@ export class PianoRoll {
       const y = e.clientY - r.top;
       const t = this.timeAt(x);
       const midi = this.maxMidi - Math.floor(y / ROW);
-      const hit = this.notes.find((n) => n.midi === midi && t >= n.start - 0.02 && t <= n.start + n.duration + 0.02);
+      // 指だとずれやすいので、時間方向に少し余裕を持たせ、ちょうどの行が無ければ上下1行も探す
+      const slack = isTouch ? 0.08 : 0.02;
+      const inTime = (n: DetectedNote) => t >= n.start - slack && t <= n.start + n.duration + slack;
+      const hit =
+        this.notes.find((n) => n.midi === midi && inTime(n)) ??
+        (isTouch ? this.notes.find((n) => Math.abs(n.midi - midi) === 1 && inTime(n)) : undefined);
       if (hit) {
         hit.excluded = !hit.excluded;
         this.onToggle(hit);
@@ -57,8 +66,7 @@ export class PianoRoll {
     this.notes = notes;
     this.range = range;
     // キャンバスの最大サイズを超えないよう、長い区間は横を縮める
-    const dpr = window.devicePixelRatio || 1;
-    this.pxPerSec = Math.min(MAX_PX_PER_SEC, (30000 / dpr - LABEL_W) / Math.max(1, range.end - range.start));
+    this.pxPerSec = Math.min(MAX_PX_PER_SEC, (16000 - LABEL_W) / Math.max(1, range.end - range.start));
     const midis = notes.map((n) => n.midi);
     this.minMidi = Math.min(...midis, 60) - 2;
     this.maxMidi = Math.max(...midis, 72) + 2;
@@ -88,10 +96,10 @@ export class PianoRoll {
 
   draw(): void {
     const c = this.canvas;
-    const dpr = window.devicePixelRatio || 1;
     const w = LABEL_W + Math.max(1, this.range.end - this.range.start) * this.pxPerSec;
     const rows = this.maxMidi - this.minMidi + 1;
     const h = rows * ROW;
+    const dpr = Math.min(window.devicePixelRatio || 1, Math.sqrt(MAX_CANVAS_PIXELS / (w * h)));
     c.style.width = `${w}px`;
     c.style.height = `${h}px`;
     c.width = Math.round(w * dpr);

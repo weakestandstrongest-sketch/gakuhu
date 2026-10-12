@@ -14,7 +14,7 @@ export class ScoreView {
     new ResizeObserver(() => {
       const w = container.clientWidth;
       if (!this.loaded || w === 0 || Math.abs(w - this.lastWidth) < 2) return;
-      this.enqueue(async (osmd) => osmd.render());
+      this.enqueue(async (osmd) => this.draw(osmd));
     }).observe(container);
   }
 
@@ -56,8 +56,15 @@ export class ScoreView {
     return this.enqueue(async (osmd) => {
       await osmd.load(xml);
       this.loaded = true;
-      osmd.render();
+      this.draw(osmd);
     });
+  }
+
+  /** スマホの狭い画面では小さめに表示して、1段に入る小節を増やす */
+  private draw(osmd: OpenSheetMusicDisplay): void {
+    const w = this.container.clientWidth;
+    osmd.zoom = w < 480 ? 0.6 : w < 760 ? 0.8 : 1;
+    osmd.render();
   }
 
   clear(): void {

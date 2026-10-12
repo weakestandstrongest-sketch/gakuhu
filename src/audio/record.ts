@@ -1,11 +1,15 @@
+import { isIOS } from '../platform';
+
 // マイク録音と、ブラウザのタブ (YouTube など) の音の録音
 
 export function canCaptureTab(): boolean {
-  return typeof navigator.mediaDevices?.getDisplayMedia === 'function' && !/Android|iPhone|iPad/i.test(navigator.userAgent);
+  return typeof navigator.mediaDevices?.getDisplayMedia === 'function' && !isIOS && !/Android/i.test(navigator.userAgent);
 }
 
-function pickMimeType(): string {
-  for (const t of ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg']) {
+export function pickMimeType(): string {
+  // iPhone の Safari は自分で録った mp4 のほうが確実に読み込める
+  const candidates = isIOS ? ['audio/mp4', 'audio/webm;codecs=opus'] : ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg'];
+  for (const t of candidates) {
     if (MediaRecorder.isTypeSupported(t)) return t;
   }
   return '';
