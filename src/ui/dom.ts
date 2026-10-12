@@ -58,3 +58,26 @@ export function debounce<A extends unknown[]>(fn: (...args: A) => void, ms: numb
 export function cssVar(name: string): string {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 }
+
+/** <select data-seg> を、押しやすいセグメントボタンに置き換える (値は select に保持) */
+export function enhanceSegmented(select: HTMLSelectElement): void {
+  const seg = document.createElement('div');
+  seg.className = 'seg';
+  seg.setAttribute('role', 'group');
+  const buttons = Array.from(select.options).map((opt) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = opt.text;
+    b.addEventListener('click', () => {
+      if (select.value === opt.value) return;
+      select.value = opt.value;
+      select.dispatchEvent(new Event('change'));
+    });
+    seg.appendChild(b);
+    return { b, value: opt.value };
+  });
+  const sync = () => buttons.forEach(({ b, value }) => b.setAttribute('aria-pressed', String(value === select.value)));
+  select.addEventListener('change', sync);
+  sync();
+  select.after(seg);
+}

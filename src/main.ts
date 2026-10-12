@@ -1,11 +1,16 @@
+import '@fontsource/playfair-display/latin-600-italic.css';
+import '@fontsource/playfair-display/latin-700-italic.css';
+import '@fontsource/playfair-display/latin-600.css';
+import '@fontsource/zen-old-mincho/japanese-700.css';
+import '@fontsource/zen-old-mincho/latin-700.css';
 import './style.css';
 import { isIOS, isTouch, preferPlaybackAudioSession } from './platform';
-import { setupChordsTab } from './ui/chords-tab';
+import { enhanceSegmented } from './ui/dom';
 import { setupTransposeTab } from './ui/transpose-tab';
 import { setupTranscribeTab } from './ui/transcribe-tab';
 
 function setupTabs(): void {
-  const buttons = Array.from(document.querySelectorAll<HTMLButtonElement>('.tabs button'));
+  const buttons = Array.from(document.querySelectorAll<HTMLButtonElement>('.modes button'));
   const show = (id: string) => {
     for (const b of buttons) {
       const active = b.dataset.tab === id;
@@ -37,4 +42,7 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
 setupTabs();
 setupTranscribeTab();
 setupTransposeTab();
-setupChordsTab();
+document.querySelectorAll<HTMLSelectElement>('select[data-seg]').forEach(enhanceSegmented);
+
+// 起動できたことを index.html の見張り役に知らせる
+(window as Window & { __gakuhuReady?: boolean }).__gakuhuReady = true;

@@ -54,6 +54,7 @@ export function setupTranscribeTab(): void {
     resultCard: $('result-card'),
     play: $<HTMLButtonElement>('play'),
     speed: $<HTMLInputElement>('speed'),
+    speedChips: $('speed-chips'),
     speedVal: $('speed-val'),
     loop: $<HTMLInputElement>('loop'),
     time: $('time'),
@@ -177,7 +178,7 @@ export function setupTranscribeTab(): void {
       return;
     }
     btn.classList.add('recording');
-    btn.textContent = '⏹ 録音を止める';
+    btn.querySelector('.label')!.textContent = '録音を止める';
     (kind === 'tab' ? el.recMic : el.recTab).disabled = true;
     setStatus(el.recStatus, kind === 'tab' ? '録音中… 共有したタブで曲を再生し、終わったらここで「録音を止める」を押してください。' : '録音中…');
   }
@@ -185,8 +186,8 @@ export function setupTranscribeTab(): void {
   function finishRecording(blob: Blob) {
     el.recTab.classList.remove('recording');
     el.recMic.classList.remove('recording');
-    el.recTab.textContent = '🖥️ 他のタブの音を録音（YouTube など）';
-    el.recMic.textContent = '🎙️ マイクで録音';
+    el.recTab.querySelector('.label')!.textContent = 'タブの音を録音';
+    el.recMic.querySelector('.label')!.textContent = 'マイクで録音';
     el.recTab.disabled = false;
     el.recMic.disabled = false;
     if (blob.size === 0) {
@@ -202,7 +203,8 @@ export function setupTranscribeTab(): void {
 
   // ---------- 再生 ----------
   player.onStateChange = (playing) => {
-    el.play.textContent = playing ? '⏸ 停止' : '▶ 再生';
+    el.play.classList.toggle('is-playing', playing);
+    el.play.setAttribute('aria-label', playing ? '停止' : '再生');
   };
   player.onTick = (t) => {
     waveform.setPlayhead(t);
@@ -211,10 +213,21 @@ export function setupTranscribeTab(): void {
     el.time.textContent = `${formatTime(t)} / ${formatTime(buffer?.duration ?? 0)}`;
   };
   el.play.addEventListener('click', () => player.toggle());
-  el.speed.addEventListener('input', () => {
-    player.setRate(Number(el.speed.value));
-    el.speedVal.textContent = `${Math.round(Number(el.speed.value) * 100)}%`;
-  });
+  const speedButtons = Array.from(el.speedChips.querySelectorAll<HTMLButtonElement>('button'));
+  const updateSpeed = () => {
+    const rate = Number(el.speed.value);
+    player.setRate(rate);
+    el.speedVal.textContent = `${Math.round(rate * 100)}%`;
+    for (const b of speedButtons) b.classList.toggle('is-active', Math.abs(Number(b.dataset.rate) - rate) < 0.001);
+  };
+  el.speed.addEventListener('input', updateSpeed);
+  for (const b of speedButtons) {
+    b.addEventListener('click', () => {
+      el.speed.value = b.dataset.rate!;
+      updateSpeed();
+    });
+  }
+  updateSpeed();
   el.loop.addEventListener('change', () => {
     player.loop = el.loop.checked ? selection : null;
   });
@@ -407,7 +420,7 @@ export function setupTranscribeTab(): void {
   el.synthPlay.addEventListener('click', () => {
     if (synth.playing) {
       synth.stop();
-      el.synthPlay.textContent = '♪ 楽譜を音で確認';
+      setSynthButton(false);
       return;
     }
     if (!quantized) return;
@@ -422,9 +435,14 @@ export function setupTranscribeTab(): void {
     };
     const events: SynthNote[] = quantized.notes.map((n) => ({ time: toSec(n.start), duration: toSec(n.end) - toSec(n.start) - 0.02, midi: n.midi }));
     player.pause();
-    el.synthPlay.textContent = '⏹ 止める';
-    synth.play(events, () => (el.synthPlay.textContent = '♪ 楽譜を音で確認'));
+    setSynthButton(true);
+    synth.play(events, () => setSynthButton(false));
   });
+
+  function setSynthButton(playing: boolean) {
+    el.synthPlay.classList.toggle('playing', playing);
+    el.synthPlay.querySelector('.label')!.textContent = playing ? '止める' : '音で確認';
+  }
 
   el.download.addEventListener('click', () => {
     if (lastXml) download(lastXml, `${safeFileName(readSettings().title)}_tenor.musicxml`);

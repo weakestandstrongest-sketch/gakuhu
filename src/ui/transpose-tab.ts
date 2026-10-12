@@ -56,13 +56,17 @@ export function setupTransposeTab(): void {
     const firstWithNotes = parts.find((p) => p.noteCount > 0)?.id ?? parts[0].id;
     for (const p of parts) {
       const label = document.createElement('label');
-      label.className = 'inline';
+      label.className = 'toggle';
       const cb = document.createElement('input');
       cb.type = 'checkbox';
       cb.value = p.id;
       cb.checked = p.id === firstWithNotes;
       cb.addEventListener('change', update);
-      label.append(cb, ` ${p.name}（${p.noteCount} 音）`);
+      const ui = document.createElement('span');
+      ui.className = 'toggle-ui';
+      const text = document.createElement('span');
+      text.textContent = `${p.name}（${p.noteCount} 音）`;
+      label.append(cb, ui, text);
       el.parts.appendChild(label);
     }
   }

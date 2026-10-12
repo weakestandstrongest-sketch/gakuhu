@@ -82,30 +82,43 @@ export class WaveformView {
       g.fillRect(x(this.selection.start), 0, x(this.selection.end) - x(this.selection.start), h);
     }
 
-    g.fillStyle = cssVar('--wave');
+    // 縦棒を並べた波形。再生済みの部分は金色、まだの部分は暗く
     const n = this.peaks.length;
     let max = 0;
     for (const p of this.peaks) max = Math.max(max, p);
-    const scale = max > 0 ? (h / 2 - 4) / max : 0;
-    for (let px = 0; px < w; px++) {
+    const scale = max > 0 ? (h / 2 - 8) / max : 0;
+    const bar = 2;
+    const gap = 1;
+    const played = x(this.playhead);
+    const bright = cssVar('--wave');
+    const dim = cssVar('--wave-dim');
+    const sel = this.selection;
+    for (let px = 0; px < w; px += bar + gap) {
       const from = Math.floor((px / w) * n);
-      const to = Math.max(from + 1, Math.floor(((px + 1) / w) * n));
+      const to = Math.max(from + 1, Math.floor(((px + bar + gap) / w) * n));
       let p = 0;
       for (let i = from; i < to; i++) p = Math.max(p, this.peaks[i]);
       const hh = Math.max(1, p * scale);
-      g.fillRect(px, h / 2 - hh, 1, hh * 2);
+      const inSel = sel ? px >= x(sel.start) && px <= x(sel.end) : true;
+      g.fillStyle = px < played ? bright : dim;
+      g.globalAlpha = inSel ? 1 : 0.45;
+      g.fillRect(px, h / 2 - hh, bar, hh * 2);
     }
+    g.globalAlpha = 1;
 
-    // 時間の目盛り (10秒ごと)
+    // 時間の目盛り
     g.fillStyle = cssVar('--muted');
-    g.font = '10px system-ui, sans-serif';
+    g.font = '10px -apple-system, system-ui, sans-serif';
     const step = this.duration > 240 ? 30 : this.duration > 60 ? 10 : 5;
     for (let t = step; t < this.duration; t += step) {
-      g.fillRect(x(t), h - 6, 1, 6);
-      g.fillText(`${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`, x(t) + 2, h - 2);
+      g.fillRect(x(t), h - 5, 1, 5);
+      g.fillText(`${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`, x(t) + 3, h - 3);
     }
 
     g.fillStyle = cssVar('--playhead');
+    g.shadowColor = cssVar('--playhead');
+    g.shadowBlur = 8;
     g.fillRect(x(this.playhead) - 1, 0, 2, h);
+    g.shadowBlur = 0;
   }
 }

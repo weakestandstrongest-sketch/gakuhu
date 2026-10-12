@@ -15,7 +15,7 @@ export interface Grid {
 const MAX_PX_PER_SEC = 120;
 /** 1半音の行の高さ。指で操作する端末ではタップしやすいよう大きくする */
 const ROW = isTouch ? 15 : 9;
-const LABEL_W = 36;
+const LABEL_W = 46;
 /** iPhone の Safari はキャンバスの面積が約1677万ピクセルまでなので、それより小さく抑える */
 const MAX_CANVAS_PIXELS = 16_000_000;
 
@@ -111,12 +111,13 @@ export class PianoRoll {
     const y = (midi: number) => (this.maxMidi - midi) * ROW;
     const x = (t: number) => LABEL_W + (t - this.range.start) * this.pxPerSec;
 
-    // 横線 (黒鍵の行を少し暗く)
+    // 鍵盤の白黒は、表示している音名 (テナー譜 = 実音 + 長2度) に合わせる
+    const isBlack = (m: number) => [1, 3, 6, 8, 10].includes((((m + 2) % 12) + 12) % 12);
+
+    // 黒鍵の行を少し暗く
+    g.fillStyle = cssVar('--roll-grid');
     for (let m = this.minMidi; m <= this.maxMidi; m++) {
-      if ([1, 3, 6, 8, 10].includes(((m % 12) + 12) % 12)) {
-        g.fillStyle = cssVar('--roll-grid');
-        g.fillRect(LABEL_W, y(m), w, ROW);
-      }
+      if (isBlack(m)) g.fillRect(LABEL_W, y(m), w, ROW);
     }
 
     // 拍と小節の線
@@ -124,46 +125,79 @@ export class PianoRoll {
       const spb = 60 / this.grid.bpm;
       const first = Math.ceil((this.range.start - this.grid.downbeat) / spb);
       const last = Math.floor((this.range.end - this.grid.downbeat) / spb);
+      const beatColor = cssVar('--roll-beat');
+      const barColor = cssVar('--roll-bar');
+      g.font = 'italic 600 11px "Playfair Display", Georgia, serif';
       for (let b = first; b <= last && last - first < 4000; b++) {
         const t = this.grid.downbeat + b * spb;
         const isBar = ((b % this.grid.beatsPerMeasure) + this.grid.beatsPerMeasure) % this.grid.beatsPerMeasure === 0;
-        g.fillStyle = cssVar(isBar ? '--roll-bar' : '--roll-beat');
-        g.fillRect(x(t), 0, isBar ? 2 : 1, h);
-        if (isBar) {
-          g.fillStyle = cssVar('--muted');
-          g.font = '10px system-ui, sans-serif';
-          g.fillText(String(Math.floor(b / this.grid.beatsPerMeasure) + 1), x(t) + 3, 10);
-        }
+        g.fillStyle = isBar ? barColor : beatColor;
+        g.fillRect(x(t), 0, 1, h);
+        if (isBar) g.fillText(String(Math.floor(b / this.grid.beatsPerMeasure) + 1), x(t) + 4, 12);
       }
     }
 
-    // 音
-    g.font = 'bold 9px system-ui, sans-serif';
+    // 音 (金色のバー。音の強さで明るさを変える)
+    const note = cssVar('--note');
+    const noteHi = cssVar('--note-hi');
+    const noteOff = cssVar('--note-off');
+    g.font = '600 9px -apple-system, system-ui, sans-serif';
     for (const n of this.notes) {
       const nx = x(n.start);
-      const nw = Math.max(3, n.duration * this.pxPerSec);
-      g.globalAlpha = n.excluded ? 1 : 0.45 + 0.55 * Math.min(1, n.amplitude * 1.5);
-      g.fillStyle = cssVar(n.excluded ? '--note-off' : '--note');
-      g.fillRect(nx, y(n.midi) + 1, nw, ROW - 2);
+      const nw = Math.max(4, n.duration * this.pxPerSec - 1);
+      const ny = y(n.midi) + 1.5;
+      const nh = ROW - 3;
+      if (n.excluded) {
+        g.fillStyle = noteOff;
+        g.globalAlpha = 1;
+      } else {
+        const grad = g.createLinearGradient(0, ny, 0, ny + nh);
+        grad.addColorStop(0, noteHi);
+        grad.addColorStop(1, note);
+        g.fillStyle = grad;
+        g.globalAlpha = 0.55 + 0.45 * Math.min(1, n.amplitude * 1.5);
+        g.shadowColor = note;
+        g.shadowBlur = 6;
+      }
+      g.beginPath();
+      if (g.roundRect) g.roundRect(nx, ny, nw, nh, Math.min(3, nh / 2));
+      else g.rect(nx, ny, nw, nh);
+      g.fill();
+      g.shadowBlur = 0;
       g.globalAlpha = 1;
-      if (nw > 14 && !n.excluded) {
-        g.fillStyle = '#fff';
-        g.fillText(pitchName(spellMidi(n.midi + 2, this.writtenKeyFifths)), nx + 2, y(n.midi) + ROW - 2);
+      if (nw > 16 && !n.excluded) {
+        g.fillStyle = '#241a08';
+        g.fillText(pitchName(spellMidi(n.midi + 2, this.writtenKeyFifths)), nx + 3, ny + nh - 2);
       }
     }
 
-    // 左の音名 (テナー譜の C の位置)
-    g.fillStyle = cssVar('--roll-bg');
+    // 左端の鍵盤
+    const white = cssVar('--key-white');
+    const black = cssVar('--key-black');
+    g.fillStyle = white;
     g.fillRect(0, 0, LABEL_W, h);
-    g.fillStyle = cssVar('--muted');
-    g.font = '10px system-ui, sans-serif';
     for (let m = this.minMidi; m <= this.maxMidi; m++) {
       const written = m + 14;
-      if (((written % 12) + 12) % 12 === 0) {
-        g.fillText(`C${Math.floor(written / 12) - 1}`, 4, y(m) + ROW - 1);
-        g.fillRect(LABEL_W - 4, y(m) + ROW, 4, 1);
+      const pc = ((written % 12) + 12) % 12;
+      if (isBlack(m)) {
+        g.fillStyle = black;
+        g.beginPath();
+        if (g.roundRect) g.roundRect(0, y(m) + 1, LABEL_W * 0.62, ROW - 2, [0, 3, 3, 0]);
+        else g.rect(0, y(m) + 1, LABEL_W * 0.62, ROW - 2);
+        g.fill();
+      } else if (pc === 0 || pc === 5) {
+        // C と F の下 (B-C, E-F の間) に鍵盤の切れ目
+        g.fillStyle = 'rgba(0,0,0,0.18)';
+        g.fillRect(0, y(m) + ROW - 0.5, LABEL_W, 1);
+      }
+      if (pc === 0) {
+        g.fillStyle = cssVar('--key-label');
+        g.font = '600 9px -apple-system, system-ui, sans-serif';
+        g.fillText(`C${Math.floor(written / 12) - 1}`, LABEL_W - 20, y(m) + ROW - 2);
       }
     }
+    g.fillStyle = 'rgba(0,0,0,0.5)';
+    g.fillRect(LABEL_W - 1, 0, 1, h);
     this.playheadEl.style.height = `${h}px`;
   }
 }

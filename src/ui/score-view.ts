@@ -56,6 +56,7 @@ export class ScoreView {
     return this.enqueue(async (osmd) => {
       await osmd.load(xml);
       this.loaded = true;
+      this.container.closest('.sheet')?.classList.add('has-score');
       this.draw(osmd);
     });
   }
@@ -69,6 +70,7 @@ export class ScoreView {
 
   clear(): void {
     this.loaded = false;
+    this.container.closest('.sheet')?.classList.remove('has-score');
     if (!this.osmd) return;
     void this.enqueue((osmd) => osmd.clear());
   }

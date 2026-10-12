@@ -1,7 +1,7 @@
 // オフライン対応 (ホーム画面から開いたとき、電波の無い練習室などでも使えるように)
 // - ページ本体はネット優先 (更新をすぐ反映)、つながらなければキャッシュ
 // - JS/CSS/AI モデル等はキャッシュ優先 (ファイル名にハッシュが付くので古いものは使われない)
-const CACHE = 'gakuhu-v1';
+const CACHE = 'gakuhu-v2';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
